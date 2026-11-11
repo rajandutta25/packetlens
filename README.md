@@ -43,6 +43,13 @@ Findings are ranked by severity (critical → info). Each one comes with evidenc
 - Traffic to known-suspicious ports (4444, 31337, IRC, Tor, mining pools…)
 - Scanner / scripting user-agents (nmap, sqlmap, curl, python-requests…) and attack-pattern URIs
 - TLS without SNI, and large outbound transfers to the internet
+- **Remote command shells** (cmd.exe / PowerShell / Unix prompts, Meterpreter) in raw TCP sessions, linked to the exploit traffic that preceded them
+- **RAT protocols** (njRAT, DarkComet, Gh0st, Turkish-language RAT check-ins, plus generic victim-profile beacons)
+- **Gateway MAC change** (ARP poisoning when the real router never sends ARP), and hosts that never answer ARP
+- Stealth scans / OS fingerprinting (NULL, FIN, Xmas, SYN+FIN)
+- Web attacks: SQL injection, traversal/LFI, XSS, command injection, admin-path probing
+- Exploit-kit downloads (executables, Flash/Java from shady hosts), high-abuse TLDs, repeated POST C2 check-ins
+- Session-cookie reuse from different hosts (session hijacking), and DNS zone transfers (AXFR)
 
 **Troubleshooting**
 - TCP retransmission rate, duplicate ACKs, zero-window stalls, keep-alives
@@ -74,6 +81,30 @@ host 10.0.0.5 and port 53          # tcpdump/BPF-style shorthand
 
 ### Other views
 Overview dashboard (KPIs, traffic timeline, top protocols/talkers/services) · Conversations (TCP/UDP sessions with state, RTT and retransmissions; IP pairs) · Endpoints (scope, names seen, MACs, TTLs) · Protocol hierarchy · DNS · HTTP · TLS (JA3) · Credentials. Every table is sortable, searchable and can be copied as CSV.
+
+## Validation against real attack captures
+
+Tested against the public capture set from *Practical Packet Analysis* ([chrissanders/packets](https://github.com/chrissanders/packets)):
+
+| Capture | What's in it | PacketLens result |
+|---|---|---|
+| `aurora.pcapng` | Operation Aurora IE exploit → reverse shell | **CRITICAL** Remote command shell (cmd.exe on port 4321, linked to the preceding exploit HTTP requests) |
+| `ratinfected.pcapng` | RAT-infected host | **CRITICAL** RAT traffic (`ANABILGI`/`BAGLIMI` check-ins, 504 KB exfiltrated) + periodic beaconing |
+| `ek_to_cryptowall4.pcapng` | Exploit kit → CryptoWall 4 | **HIGH** Flash + binary payload from a `.top` domain, **HIGH** repeated POST C2 check-ins |
+| `cryptowall4_c2.pcapng` | CryptoWall 4 C2 | **HIGH** Repeated HTTP POST check-ins with random parameters |
+| `arppoison.pcapng` | ARP cache poisoning MITM | **CRITICAL** Gateway MAC changed mid-session |
+| `synscan.pcapng` | nmap SYN scan | **HIGH** Port scan |
+| `activeosfingerprinting.pcapng` | nmap -O | **HIGH** Stealth scan / OS fingerprinting (abnormal TCP flags) |
+| `http_dvwa_sqlinjection*.pcapng` | SQL injection | **HIGH** Web attack: SQL injection |
+| `http_dvwa_directorytraversal.pcapng` | Path traversal | **HIGH** Web attack: directory traversal |
+| `http_dvwa_clearlogin.pcapng` | Login form over HTTP | **CRITICAL** Clear-text credentials |
+| `sessionhijacking.pcapng` | Stolen session cookie | **HIGH** Session cookie reused from two hosts |
+| `dns_axfr.pcapng` | Zone transfer | **HIGH** DNS zone transfer succeeded |
+| `tcp_retransmissions` / `tcp_zerowindowdead` | Network faults | Retransmissions / zero-window findings |
+| `lotsofweb.pcapng`, `http_espn`, `download-fast`, `mail_sender_attachment` | Normal traffic | No high/critical findings |
+
+![Remote shell finding](docs/finding-shell.png)
+![Follow stream of the reverse shell](docs/follow-stream.png)
 
 ## Project layout
 
